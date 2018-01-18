@@ -61,15 +61,17 @@ public class MapsActivity extends FragmentActivity
     private static final String TAG = "Maps Activity";
     private static final String WAS_LAUNCHED = "Launched";
     private static final String NOT_LAUNCHED = "Not launched";
-    private static final String NO_TITLE = "You don't add title :(";
+    private static final String NO_TITLE = "No title";
+    private static final String NO_DESCRIPTION = "No description";
 
     private GoogleMap mMap;
     private SupportMapFragment mapFragment;
     private Marker mMarker;
 
-    private ArrayList<LatLng> mMarkersLatLng = new ArrayList<>();  // Store markers LatLng
-    private ArrayList<String> mMarkersTitles = new ArrayList<>();  // Store markers titles
-    private ArrayList<String> mMarkersTags = new ArrayList<>();    // Store markers tags
+    private ArrayList<LatLng> mMarkersLatLng = new ArrayList<>();       // Store markers LatLng
+    private ArrayList<String> mMarkersTitles = new ArrayList<>();       // Store markers titles
+    private ArrayList<String> mMarkersTags = new ArrayList<>();         // Store markers tags
+    private ArrayList<String> mMarkersSnippets = new ArrayList<>(); // Store markers snippets
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -94,11 +96,12 @@ public class MapsActivity extends FragmentActivity
                     mMarkersLatLng = savedInstanceState.getParcelableArrayList("Markers LatLng");
                     mMarkersTitles = savedInstanceState.getStringArrayList("Markers titles");
                     mMarkersTags = savedInstanceState.getStringArrayList("Markers tags");
+                    mMarkersSnippets = savedInstanceState.getStringArrayList("Markers snippets");
                     LatLng cameraPosition = savedInstanceState.getParcelable("Camera position (Latlng)");
 
                     // Restore markers on map
                     if (mMarkersLatLng != null) {
-                        restoreMarkers(mMarkersLatLng, mMarkersTitles, mMarkersTags);
+                        restoreMarkers(mMarkersLatLng, mMarkersTitles, mMarkersTags, mMarkersSnippets);
                     }
                     // Restore camera position
                     mMap.moveCamera(CameraUpdateFactory.newLatLng(cameraPosition));
@@ -226,6 +229,8 @@ public class MapsActivity extends FragmentActivity
         mMarkersLatLng.add(latLng);
         mMarkersTitles.add(NO_TITLE);
         mMarkersTags.add(NOT_LAUNCHED);
+        mMarkersSnippets.add(NO_DESCRIPTION);
+
     }
 
     @Override
@@ -300,6 +305,7 @@ public class MapsActivity extends FragmentActivity
         outState.putParcelableArrayList("Markers LatLng", mMarkersLatLng);
         outState.putStringArrayList("Markers titles", mMarkersTitles);
         outState.putStringArrayList("Markers tags", mMarkersTags);
+        outState.putStringArrayList("Markers snippets", mMarkersSnippets);
         outState.putParcelable("Camera position (Latlng)", mMap.getCameraPosition().target);
 
         super.onSaveInstanceState(outState);
@@ -342,7 +348,7 @@ public class MapsActivity extends FragmentActivity
 
     // Restore markers on map
     private void restoreMarkers(ArrayList<LatLng> markersLatLng, ArrayList<String> markersTitles,
-                                ArrayList<String> markersTags) {
+                                ArrayList<String> markersTags, ArrayList<String> markersSnippets) {
         Log.d(TAG, "restoreMarkers( )");
         if (markersLatLng != null & markersTitles != null) {
             for (int i = 0; i < markersLatLng.size(); i++) {
@@ -350,7 +356,8 @@ public class MapsActivity extends FragmentActivity
                 markerOptions.position(markersLatLng.get(i))
                         .draggable(true)
                         .icon(bitmapDescriptorFromVector(this, R.drawable.ic_personal_marker))
-                        .title(markersTitles.get(i));
+                        .title(markersTitles.get(i))
+                        .snippet(markersSnippets.get(i));
                 mMap.addMarker(markerOptions)
                         .setTag(markersTags.get(i));
             }
@@ -419,15 +426,25 @@ public class MapsActivity extends FragmentActivity
         int index = mMarkersLatLng.indexOf(mMarker.getPosition());
 
         // Set tag and title for current marker
+        // Tag
         mMarkersTags.add(index, WAS_LAUNCHED);
         mMarkersTags.remove(index + 1);
 
+        // Title
         if (mMarker.getTitle().isEmpty()) {
             mMarkersTitles.add(index, NO_TITLE);
         } else {
             mMarkersTitles.add(index, mMarker.getTitle());
         }
         mMarkersTitles.remove(index + 1);
+
+        // Snippet
+        if (mMarker.getSnippet().isEmpty()) {
+            mMarkersSnippets.add(index, NO_DESCRIPTION);
+        } else {
+            mMarkersSnippets.add(index, mMarker.getSnippet());
+        }
+        mMarkersSnippets.remove(index + 1);
 
         Intent markerInfo = new Intent(MapsActivity.this, MarkerInfoActivity.class);
 
