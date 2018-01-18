@@ -281,7 +281,6 @@ public class MapsActivity extends FragmentActivity
     @Override
     protected void onResume() {
         super.onResume();
-
         Log.d(TAG, "onResume(Bundle) called");
     }
 
@@ -460,7 +459,7 @@ public class MapsActivity extends FragmentActivity
         markerInfo.putExtra("description_from_maps_activity", description);
 
         // Run MarkerInfoActivity
-        startActivity(markerInfo);
+        startActivityForResult(markerInfo, 1);
     }
 
     // Negative OnMarkerClickDialogFragment button

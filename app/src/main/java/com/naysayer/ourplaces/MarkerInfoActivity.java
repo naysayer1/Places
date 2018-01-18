@@ -112,11 +112,11 @@ public class MarkerInfoActivity extends AppCompatActivity
     // Передавать title и snippet обратно в MapsActivity
     @Override
     public void onBackPressed() {
-        super.onBackPressed();
         Intent mapsActivity = new Intent();
         mapsActivity.putExtra("Marker title from card", mMarkerTitle);
         mapsActivity.putExtra("Marker description from card", mMarkerDescription);
         setResult(RESULT_OK, mapsActivity);
+        super.onBackPressed();
     }
 
     /**
