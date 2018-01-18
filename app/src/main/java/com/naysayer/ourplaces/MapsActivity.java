@@ -237,7 +237,6 @@ public class MapsActivity extends FragmentActivity
         } else if (!mMarker.getTitle().equals(NO_TITLE)) {
             marker.showInfoWindow();
         }
-
         return false;
     }
 
