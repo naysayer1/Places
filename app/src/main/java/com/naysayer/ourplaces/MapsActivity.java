@@ -49,6 +49,7 @@ import java.util.Objects;
 //TODO: сделать иконку с деревом
 //TODO: при повороте сохранять данные маркера (snippet)
 //TODO: сделать кастомное InfoWindow и не отображать там snippet
+//TODO: когда перетаскиваешь маркер надо изменить ему координаты, а то при повороте экрана он возвращается на место которое было до перетаскивания
 
 public class MapsActivity extends FragmentActivity
         implements OnMarkerClickFragmentDialog.OnDialogButtonsClickListener,
@@ -247,16 +248,22 @@ public class MapsActivity extends FragmentActivity
 
     @Override
     public void onInfoWindowClick(Marker marker) {
-        String mCurrentTitle = marker.getTitle();
-        String mCurrentDescription = marker.getSnippet();
+        mMarker = marker;
 
-        Intent markerInfo = new Intent(MapsActivity.this, MarkerInfoActivity.class);
-        markerInfo.putExtra("title_from_maps_activity", mCurrentTitle);
-        markerInfo.putExtra("description_from_maps_activity", mCurrentDescription);
+        Intent markerInfo = new Intent(this, MarkerInfoActivity.class);
+        markerInfo.putExtra("title_from_maps_activity", marker.getTitle());
+        markerInfo.putExtra("description_from_maps_activity", marker.getSnippet());
 
         // Run MarkerInfoActivity
-        startActivity(markerInfo);
+        startActivityForResult(markerInfo, 1);
+    }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (data == null) return;
+        // TODO: 18.01.2018  не устанавливается (в onMarkerClick старые данные)
+        mMarker.setTitle(data.getStringExtra("Marker title from card"));
+        mMarker.setSnippet(data.getStringExtra("Marker description from card"));
     }
 
     @Override
