@@ -224,7 +224,7 @@ public class MapsActivity extends FragmentActivity
 
         //Add marker LatLng, title, tag at arraylists
         mMarkersLatLng.add(latLng);
-        mMarkersTitles.add("!");
+        mMarkersTitles.add(NO_TITLE);
         mMarkersTags.add(NOT_LAUNCHED);
     }
 
@@ -234,7 +234,9 @@ public class MapsActivity extends FragmentActivity
 
         if (!Objects.equals(marker.getTag(), WAS_LAUNCHED)) {
             showOnMarkerClickDialog();
-        } else marker.showInfoWindow();
+        } else if (!mMarker.getTitle().equals(NO_TITLE)) {
+            marker.showInfoWindow();
+        }
 
         return false;
     }
@@ -370,7 +372,7 @@ public class MapsActivity extends FragmentActivity
     }
 
     // Make dialog to delete marker from map
-    protected void deleteMarkerDialog(final Marker marker) {
+    private void deleteMarkerDialog(final Marker marker) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage(R.string.dialog_delete_marker)
                 .setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
@@ -408,15 +410,6 @@ public class MapsActivity extends FragmentActivity
     // Method sends a title and a description(snippet) to the MarkerInfoActivity
     @Override
     public void onPositiveClick(String title, String description) {
-        Intent markerInfo = new Intent(MapsActivity.this, MarkerInfoActivity.class);
-
-        // Put strings
-        markerInfo.putExtra("title_from_maps_activity", title);
-        markerInfo.putExtra("description_from_maps_activity", description);
-
-        // Run MarkerInfoActivity
-        startActivity(markerInfo);
-
         // Set marker title
         mMarker.setTitle(title);
         mMarker.setSnippet(description);
@@ -428,11 +421,23 @@ public class MapsActivity extends FragmentActivity
 
         // Set tag and title for current marker
         mMarkersTags.add(index, WAS_LAUNCHED);
+        mMarkersTags.remove(index + 1);
+
         if (mMarker.getTitle().isEmpty()) {
             mMarkersTitles.add(index, NO_TITLE);
         } else {
             mMarkersTitles.add(index, mMarker.getTitle());
         }
+        mMarkersTitles.remove(index + 1);
+
+        Intent markerInfo = new Intent(MapsActivity.this, MarkerInfoActivity.class);
+
+        // Put strings
+        markerInfo.putExtra("title_from_maps_activity", title);
+        markerInfo.putExtra("description_from_maps_activity", description);
+
+        // Run MarkerInfoActivity
+        startActivity(markerInfo);
     }
 
     // Negative OnMarkerClickDialogFragment button
