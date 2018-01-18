@@ -1,0 +1,26 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:alertDialogTheme">@style/AlertDialogCustom</item>
+    </style>
+
+    <style name="AlertDialogCustom" parent="android:Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorPrimary">@color/secondaryColorDark</item>
+        <item name="android:colorAccent">@color/secondaryColorDark</item>
+    </style>
+
+    <style name="DialogTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorAccent">@color/secondaryColorDark</item>
+    </style>
+
+    <style name="TextSizeInMarkerInfo" parent="Theme.AppCompat.Light.NoActionBar">
+    <item name="android:textSize">14sp</item>
+    </style>
+</resources>
+
+
+

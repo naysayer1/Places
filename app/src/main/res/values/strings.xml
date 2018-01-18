@@ -1,0 +1,47 @@
+<resources>
+    <string name="app_name">Places</string>
+    <string name="placesapp_android_com">placesapp@android.com</string>
+    <string name="marker_info_activity_name">Marker Info</string>
+
+    <!-- Delete marker dialog in MapsActivity -->
+    <string name="dialog_delete_marker">Delete marker?</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Snackbar in addMarker method in MapsActivity -->
+    <string name="add_marker_snackbar">Marker added</string>
+    <string name="snackbar_action">Undo</string>
+
+    <!-- Dialog offering to turn on GPS, if it is off in MapsActivity -->
+    <string name="alert_dialog_no_gps">Please turn on your GPS connection</string>
+    <string name="turn_on">Turn on</string>
+
+    <!--MarkerInfoActivity templates -->
+    <string name="title_in_marker_info">Title goes here</string>
+    <string name="edit_button_in_marker_info">Edit</string>
+    <string name="add_to_fav_button_in_marker_info">Add to favorites</string>
+    <string name="description_in_marker_info">
+        A more detailed description of the events that occurred at that location.
+    </string>
+
+    <!-- Add marker parameters dialog -->
+    <string name="dialog_title_in_on_marker_click_dialog_fragment">Add marker parameters</string>
+    <string name="marker_title_hint_in_on_marker_click_dialog_fragment">Marker title</string>
+    <string name="marker_description_hint_in_on_marker_click_dialog_fragment">Marker description</string>
+    <string name="add_button_in_on_marker_click_dialog_fragment">Add</string>
+    <string name="cancel_button_in_on_marker_click_dialog_fragment">Cancel</string>
+    <string name="add_a_photo_toolbar_menu">Add a photo</string>
+
+    <!-- Navigation drawer -->
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="favourites_markers">Favourites markers</string>
+    <string name="tools">Tools</string>
+    <string name="communicate">Communicate</string>
+    <string name="gallery">Gallery</string>
+    <string name="rate">Rate</string>
+
+    <!-- Content description -->
+    <string name="application_icon">Application Icon</string>
+
+</resources>

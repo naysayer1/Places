@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_favourites_markers"
+            android:title="@string/favourites_markers"
+            android:icon="@drawable/ic_nav_menu_favorite_24dp"/>
+        <item
+            android:id="@+id/nav_gallery"
+            android:title="@string/gallery"
+            android:icon="@drawable/ic_nav_menu_gallery_24dp"/>
+        <item
+            android:id="@+id/nav_manage"
+            android:title="@string/tools"
+            android:icon="@drawable/ic_nav_menu_tools_24dp"/>
+    </group>
+
+    <item android:title="@string/communicate">
+        <menu>
+            <item
+                android:id="@+id/nav_rate"
+                android:title="@string/rate"
+                android:icon="@drawable/ic_nav_menu_rate_24dp"/>
+
+        </menu>
+    </item>
+
+</menu>
