@@ -82,14 +82,14 @@ public class MarkerInfoActivity extends AppCompatActivity
                 descriptionInCard.setText(mTitleAndDescription.get(0));
             }
         } else if (intent != null) {
-            if (intent.getStringExtra("title_from_maps_activity").isEmpty()) {
+            if (intent.getStringExtra("title_from_maps_activity").trim().isEmpty()) {
                 titleInCard.setText(R.string.title_in_marker_info);
                 mMarkerTitle = titleInCard.getText().toString();
             } else {
                 mMarkerTitle = intent.getStringExtra("title_from_maps_activity");
                 titleInCard.setText(mMarkerTitle);
             }
-            if (intent.getStringExtra("description_from_maps_activity").isEmpty()) {
+            if (intent.getStringExtra("description_from_maps_activity").trim().isEmpty()) {
                 descriptionInCard.setText(R.string.description_in_marker_info);
                 mMarkerDescription = descriptionInCard.getText().toString();
             } else {
@@ -117,7 +117,6 @@ public class MarkerInfoActivity extends AppCompatActivity
         mapsActivity.putExtra("Marker title from card", mMarkerTitle);
         mapsActivity.putExtra("Marker description from card", mMarkerDescription);
         setResult(RESULT_OK, mapsActivity);
-
     }
 
     /**
