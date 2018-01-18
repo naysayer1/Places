@@ -52,7 +52,6 @@ import java.util.Objects;
 
 public class MapsActivity extends FragmentActivity
         implements OnMarkerClickFragmentDialog.OnDialogButtonsClickListener,
-        OnMapReadyCallback,
         GoogleMap.OnMapLongClickListener,
         GoogleMap.OnMarkerClickListener,
         GoogleMap.OnInfoWindowClickListener,
@@ -73,7 +72,7 @@ public class MapsActivity extends FragmentActivity
     private ArrayList<String> mMarkersTags = new ArrayList<>();    // Store markers tags
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "onCreate(Bundle) called");
         setContentView(R.layout.main_activity);
@@ -81,7 +80,31 @@ public class MapsActivity extends FragmentActivity
         // Get GoogleMap
         mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+        mapFragment.getMapAsync(new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(GoogleMap googleMap) {
+                mMap = googleMap;
+
+                moveCameraToCurrentLocation(15f);
+                setUpMap();
+
+                // Check whether we're recreating a previously destroyed instance
+                if (savedInstanceState != null) {
+                    // Restore value of members from saved state
+                    mMarkersLatLng = savedInstanceState.getParcelableArrayList("Markers LatLng");
+                    mMarkersTitles = savedInstanceState.getStringArrayList("Markers titles");
+                    mMarkersTags = savedInstanceState.getStringArrayList("Markers tags");
+                    LatLng cameraPosition = savedInstanceState.getParcelable("Camera position (Latlng)");
+
+                    // Restore markers on map
+                    if (mMarkersLatLng != null) {
+                        restoreMarkers(mMarkersLatLng, mMarkersTitles, mMarkersTags);
+                    }
+                    // Restore camera position
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(cameraPosition));
+                }
+            }
+        });
 
         // Add PlaceSelectionListener
         PlaceAutocompleteFragment mAutocompleteFragment = (PlaceAutocompleteFragment)
@@ -152,11 +175,8 @@ public class MapsActivity extends FragmentActivity
         navigationView.setNavigationItemSelectedListener(this);
     }
 
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
-
-        moveCameraToCurrentLocation(15f);
+    // Set map listeners and settings
+    private void setUpMap() {
 
         // Customize map
         if (ActivityCompat.checkSelfPermission(MapsActivity.this,
@@ -197,9 +217,6 @@ public class MapsActivity extends FragmentActivity
         mMap.setOnMarkerClickListener(this);
     }
 
-    private void setUpMap(){
-
-    }
     @Override
     public void onMapLongClick(LatLng latLng) {
         //Add marker
@@ -282,21 +299,9 @@ public class MapsActivity extends FragmentActivity
         outState.putParcelableArrayList("Markers LatLng", mMarkersLatLng);
         outState.putStringArrayList("Markers titles", mMarkersTitles);
         outState.putStringArrayList("Markers tags", mMarkersTags);
+        outState.putParcelable("Camera position (Latlng)", mMap.getCameraPosition().target);
 
         super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        Log.d(TAG, "onRestoreInstanceState(Bundle) called");
-        super.onRestoreInstanceState(savedInstanceState);
-
-        mMarkersLatLng = savedInstanceState.getParcelableArrayList("Markers LatLng");
-        mMarkersTitles = savedInstanceState.getStringArrayList("Markers titles");
-        mMarkersTags = savedInstanceState.getStringArrayList("Markers tags");
-        if (mMarkersLatLng != null) {
-            restoreMarkers(mMarkersLatLng, mMarkersTitles, mMarkersTags);
-        }
     }
 
     // Add custom marker on map
@@ -345,8 +350,6 @@ public class MapsActivity extends FragmentActivity
                         .draggable(true)
                         .icon(bitmapDescriptorFromVector(this, R.drawable.ic_personal_marker))
                         .title(markersTitles.get(i));
-
-                // TODO: 17.01.2018 null!!!!
                 mMap.addMarker(markerOptions)
                         .setTag(markersTags.get(i));
             }
