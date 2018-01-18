@@ -261,9 +261,21 @@ public class MapsActivity extends FragmentActivity
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (data == null) return;
-        // TODO: 18.01.2018  не устанавливается (в onMarkerClick старые данные)
-        mMarker.setTitle(data.getStringExtra("Marker title from card"));
-        mMarker.setSnippet(data.getStringExtra("Marker description from card"));
+
+        String titleFromMarkerInfoActivity = data.getStringExtra("Marker title from card");
+        String descriptionFromMarkerInfoActivity = data.getStringExtra("Marker description from card");
+        mMarker.setTitle(titleFromMarkerInfoActivity);
+        mMarker.setSnippet(descriptionFromMarkerInfoActivity);
+
+        // Get marker latlng, when get array index of latlng
+        int index = mMarkersLatLng.indexOf(mMarker.getPosition());
+
+        // Set changed title and snippet to array
+        mMarkersTitles.set(index, titleFromMarkerInfoActivity);
+        mMarkersSnippets.set(index, descriptionFromMarkerInfoActivity);
+
+        // Show changes
+        mMarker.showInfoWindow();
     }
 
     @Override
@@ -409,7 +421,8 @@ public class MapsActivity extends FragmentActivity
         CurrentLocation currentLocation = new CurrentLocation();
         //Move camera to current location
         mMap.animateCamera(CameraUpdateFactory
-                .newLatLngZoom(currentLocation.getCurrentLocation(this, MapsActivity.this), zoom));
+                .newLatLngZoom(currentLocation.getCurrentLocation(this,
+                        MapsActivity.this), zoom));
     }
 
     // Show the dialog
@@ -425,33 +438,24 @@ public class MapsActivity extends FragmentActivity
         // Set marker title
         mMarker.setTitle(title);
         mMarker.setSnippet(description);
+
         // Set tag, which shows whether the activity was started
         mMarker.setTag(WAS_LAUNCHED);
 
         // Get marker latlng, when get array index of latlng
         int index = mMarkersLatLng.indexOf(mMarker.getPosition());
 
-        // Set tag and title for current marker
-        // Tag
-        mMarkersTags.add(index, WAS_LAUNCHED);
-        mMarkersTags.remove(index + 1);
-
         // Title
-        if (mMarker.getTitle().isEmpty()) {
-            mMarkersTitles.add(index, NO_TITLE);
-        } else {
-            mMarkersTitles.add(index, mMarker.getTitle());
+        if (!mMarker.getTitle().trim().isEmpty()) {
+            mMarkersTitles.set(index, mMarker.getTitle());
         }
-        mMarkersTitles.remove(index + 1);
 
         // Snippet
-        if (mMarker.getSnippet().isEmpty()) {
-            mMarkersSnippets.add(index, NO_DESCRIPTION);
-        } else {
-            mMarkersSnippets.add(index, mMarker.getSnippet());
+        if (!mMarker.getSnippet().trim().isEmpty()) {
+            mMarkersSnippets.set(index, mMarker.getSnippet());
         }
-        mMarkersSnippets.remove(index + 1);
 
+        // Transfer data to MarkerInfoActivity
         Intent markerInfo = new Intent(MapsActivity.this, MarkerInfoActivity.class);
 
         // Put strings
