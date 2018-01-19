@@ -47,9 +47,8 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import java.util.ArrayList;
 import java.util.Objects;
 //TODO: сделать иконку с деревом
-//TODO: при повороте сохранять данные маркера (snippet)
 //TODO: сделать кастомное InfoWindow и не отображать там snippet
-//TODO: когда перетаскиваешь маркер надо изменить ему координаты, а то при повороте экрана он возвращается на место которое было до перетаскивания
+// TODO: 19.01.2018 если перевернуть экран телефона во время диалогового окна, то вылетает, так как поля диалого окна null и если нажать add то вылетает
 
 public class MapsActivity extends FragmentActivity
         implements OnMarkerClickFragmentDialog.OnDialogButtonsClickListener,
@@ -98,7 +97,7 @@ public class MapsActivity extends FragmentActivity
                     mMarkersTitles = savedInstanceState.getStringArrayList("Markers titles");
                     mMarkersTags = savedInstanceState.getStringArrayList("Markers tags");
                     mMarkersSnippets = savedInstanceState.getStringArrayList("Markers snippets");
-                    LatLng cameraPosition = savedInstanceState.getParcelable("Camera position (Latlng)");
+                    LatLng cameraPosition = savedInstanceState.getParcelable("MyCamera position (Latlng)");
 
                     // Restore markers on map
                     if (mMarkersLatLng != null) {
@@ -324,7 +323,7 @@ public class MapsActivity extends FragmentActivity
         outState.putStringArrayList("Markers titles", mMarkersTitles);
         outState.putStringArrayList("Markers tags", mMarkersTags);
         outState.putStringArrayList("Markers snippets", mMarkersSnippets);
-        outState.putParcelable("Camera position (Latlng)", mMap.getCameraPosition().target);
+        outState.putParcelable("MyCamera position (Latlng)", mMap.getCameraPosition().target);
 
         super.onSaveInstanceState(outState);
     }
@@ -335,7 +334,6 @@ public class MapsActivity extends FragmentActivity
         // Set marker params
         mMarker = mMap.addMarker(new MarkerOptions()
                 .position(latLng)
-                .draggable(true)
                 .icon(bitmapDescriptorFromVector(this, R.drawable.ic_personal_marker)));
         mMarker.setTag(NOT_LAUNCHED);
 

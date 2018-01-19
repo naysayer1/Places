@@ -1,37 +1,52 @@
 package com.naysayer.ourplaces;
 
+import android.annotation.SuppressLint;
 import android.app.DialogFragment;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
-import android.support.v7.app.ActionBar;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.support.design.widget.TextInputEditText;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 
-import java.util.ArrayList;
+import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
 
 public class MarkerInfoActivity extends AppCompatActivity
         implements OnMarkerClickFragmentDialog.OnDialogButtonsClickListener {
 
-    public static final String TAG = "MARKER_INFO_ACTIVITY";
+    private static final String TAG = "MARKER_INFO_ACTIVITY";
+    private static final int REQUEST_TAKE_PHOTO = 1;
 
-    String mMarkerTitle;
-    String mMarkerDescription;
+    private String mMarkerTitle;
+    private String mMarkerDescription;
+    private String mCurrentPhotoPath;
 
-    protected TextView titleInCard;
-    protected TextView descriptionInCard;
-
-    ArrayList<String> mTitleAndDescription = new ArrayList<>(2);
+    private TextView titleInCard;
+    private TextView descriptionInCard;
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.take_a_photo_toolbar_menu:
+                dispatchTakePictureIntent();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -54,12 +69,6 @@ public class MarkerInfoActivity extends AppCompatActivity
         Toolbar toolbar = findViewById(R.id.toolbar_in_marker_info_activity);
         setSupportActionBar(toolbar);
 
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null) {
-            // TODO: 15.01.2018 Возврат к главной активности. Маркеры поставленые до, не отображаются
-            actionBar.setDisplayHomeAsUpEnabled(true);
-        }
-
         // Get links
         titleInCard = findViewById(R.id.marker_title_in_marker_info);
         descriptionInCard = findViewById(R.id.marker_description_in_marker_info);
@@ -75,12 +84,11 @@ public class MarkerInfoActivity extends AppCompatActivity
         Intent intent = getIntent();
 
         if (savedInstanceState != null) {
-            if (savedInstanceState.containsKey("title & description")) {
-                mTitleAndDescription = savedInstanceState.getStringArrayList("title & description");
-                assert mTitleAndDescription != null;
-                titleInCard.setText(mTitleAndDescription.get(1));
-                descriptionInCard.setText(mTitleAndDescription.get(0));
-            }
+            mMarkerTitle = savedInstanceState.getString("Title");
+            mMarkerDescription = savedInstanceState.getString("Description");
+            titleInCard.setText(mMarkerTitle);
+            descriptionInCard.setText(mMarkerDescription);
+
         } else if (intent != null) {
             if (intent.getStringExtra("title_from_maps_activity").trim().isEmpty()) {
                 titleInCard.setText(R.string.title_in_marker_info);
@@ -97,16 +105,14 @@ public class MarkerInfoActivity extends AppCompatActivity
                 descriptionInCard.setText(mMarkerDescription);
             }
         }
-
-        mTitleAndDescription.add(mMarkerDescription);
-        mTitleAndDescription.add(mMarkerTitle);
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
 
-        outState.putStringArrayList("title & description", mTitleAndDescription);
+        outState.putString("Title", mMarkerTitle);
+        outState.putString("Description", mMarkerDescription);
     }
 
     // Передавать title и snippet обратно в MapsActivity
@@ -126,12 +132,22 @@ public class MarkerInfoActivity extends AppCompatActivity
         // TODO: 18.01.2018 установить текущие значения заголовка и описания в диалог
         DialogFragment dialogFragment = OnMarkerClickFragmentDialog.newInstance();
         dialogFragment.show(getFragmentManager(), "OnMarkerClickFragmentDialog");
+
+        LayoutInflater layoutInflater = getLayoutInflater();
+        @SuppressLint("InflateParams")
+        View view = layoutInflater.inflate(R.layout.on_marker_click_dialog_fragment, null);
+        TextInputEditText titleText = view.findViewById(R.id.marker_title_in_on_marker_click_dialog_fragment);
+        titleText.setText(mMarkerTitle);
     }
 
     @Override
     public void onPositiveClick(String title, String description) {
-        mMarkerTitle = title;
-        mMarkerDescription = description;
+        if (title.trim().isEmpty()) {
+            mMarkerTitle = getResources().getString(R.string.title_in_marker_info);
+        }
+        if (description.trim().isEmpty()) {
+            mMarkerDescription = getResources().getString(R.string.description_in_marker_info);
+        }
         titleInCard.setText(mMarkerTitle);
         descriptionInCard.setText(mMarkerDescription);
     }
@@ -139,5 +155,86 @@ public class MarkerInfoActivity extends AppCompatActivity
     @Override
     public void onNegativeClick(DialogFragment dialogFragment) {
         dialogFragment.dismiss();
+    }
+
+
+    // TODO: 19.01.2018 Save the full-size photo
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == RESULT_OK && requestCode == REQUEST_TAKE_PHOTO) {
+           setPic();
+        }
+    }
+
+    /**
+     * Returns a folder name based on the current date/time, something
+     * like "20080725.013755".
+     */
+    public String getBackupFolderName() {
+        Date date = Calendar.getInstance().getTime();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd.HHmmss", Locale.getDefault());
+        return sdf.format(date);
+    }
+
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = getBackupFolderName();
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+        mCurrentPhotoPath = image.getAbsolutePath();
+        return image;
+    }
+
+    private void dispatchTakePictureIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        // Ensure that there's a camera activity to handle the intent
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            // Create the File where the photo should go
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+            }
+            // Continue only if the File was successfully created
+            if (photoFile != null) {
+                Uri photoURI = FileProvider.getUriForFile(this,
+                        "com.naysayer.ourplaces.fileprovider",
+                        photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                startActivityForResult(takePictureIntent, REQUEST_TAKE_PHOTO);
+            }
+        }
+    }
+
+    private void setPic() {
+        ImageView imageView = findViewById(R.id.marker_image_in_marker_info);
+        // Get the dimensions of the View
+        int targetW = imageView.getWidth();
+        int targetH = imageView.getHeight();
+
+        // Get the dimensions of the bitmap
+        BitmapFactory.Options bmOptions = new BitmapFactory.Options();
+        bmOptions.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
+        int photoW = bmOptions.outWidth;
+        int photoH = bmOptions.outHeight;
+
+        // Determine how much to scale down the image
+        int scaleFactor = Math.min(photoW / targetW, photoH / targetH);
+
+        // Decode the image file into a Bitmap sized to fill the View
+        bmOptions.inJustDecodeBounds = false;
+        bmOptions.inSampleSize = scaleFactor;
+
+        Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
+        imageView.setImageBitmap(bitmap);
     }
 }
