@@ -1,26 +1,23 @@
 package com.naysayer.ourplaces;
 
-import android.annotation.SuppressLint;
 import android.app.DialogFragment;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.support.design.widget.TextInputEditText;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,18 +26,93 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
+import butterknife.BindString;
+import butterknife.BindView;
+import butterknife.ButterKnife;
+
 public class MarkerInfoActivity extends AppCompatActivity
         implements OnMarkerClickFragmentDialog.OnDialogButtonsClickListener {
 
-    private static final String TAG = "MARKER_INFO_ACTIVITY";
-    private static final int REQUEST_TAKE_PHOTO = 1;
+    @BindView(R.id.toolbar_in_marker_info_activity)
+    Toolbar mToolbar;
+    @BindView(R.id.marker_title_in_marker_info)
+    TextView mTitleInCard;
+    @BindView(R.id.marker_description_in_marker_info)
+    TextView mDescriptionInCard;
+    @BindView(R.id.edit_button_marker_info)
+    Button mEditButton;
+    @BindView(R.id.add_to_fav_button_marker_info)
+    Button mAddToFavouritesButton;
+    @BindString(R.string.title_in_marker_info)
+    String mDefaultTitle;
+    @BindString(R.string.description_in_marker_info)
+    String mDefaultDescription;
+    @BindView(R.id.marker_image_in_marker_info)
+    ImageView mImageViewInCard;
+
+    private static final String TAG = "MARKER_INFO_ACTIVITY";   // Log TAG
+    private static final int REQUEST_TAKE_PHOTO = 1;            // Request code for camera result
 
     private String mMarkerTitle;
     private String mMarkerDescription;
     private String mCurrentPhotoPath;
 
-    private TextView titleInCard;
-    private TextView descriptionInCard;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        Log.d(TAG, "onCreate(Bundle) called");
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.marker_info_activity);
+
+        ButterKnife.bind(this);
+
+        // Set toolbar
+        setSupportActionBar(mToolbar);
+        android.support.v7.app.ActionBar actionBar = getSupportActionBar();
+        actionBar.setDisplayHomeAsUpEnabled(true);
+
+        mEditButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                editTitleAndDescription();
+            }
+        });
+
+        mAddToFavouritesButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Toast.makeText(MarkerInfoActivity.this, mCurrentPhotoPath, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        Intent intent = getIntent();
+
+        if (intent != null) {
+            if (intent.getStringExtra("title_from_maps_activity").trim().isEmpty()) {
+                mTitleInCard.setText(mDefaultTitle);
+                mMarkerTitle = mTitleInCard.getText().toString();
+            } else {
+                mMarkerTitle = intent.getStringExtra("title_from_maps_activity");
+                mTitleInCard.setText(mMarkerTitle);
+            }
+            if (intent.getStringExtra("description_from_maps_activity").trim().isEmpty()) {
+                mDescriptionInCard.setText(mDefaultDescription);
+                mMarkerDescription = mDescriptionInCard.getText().toString();
+            } else {
+                mMarkerDescription = intent.getStringExtra("description_from_maps_activity");
+                mDescriptionInCard.setText(mMarkerDescription);
+            }
+        }
+    }
+
+    // Передавать title и snippet обратно в MapsActivity
+    @Override
+    public void onBackPressed() {
+        Intent mapsActivity = new Intent();
+        mapsActivity.putExtra("Marker title from card", mMarkerTitle);
+        mapsActivity.putExtra("Marker description from card", mMarkerDescription);
+        setResult(RESULT_OK, mapsActivity);
+        super.onBackPressed();
+    }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -59,72 +131,6 @@ public class MarkerInfoActivity extends AppCompatActivity
         return super.onCreateOptionsMenu(menu);
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        Log.d(TAG, "onCreate(Bundle) called");
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.marker_info_activity);
-
-        // Set toolbar
-        Toolbar toolbar = findViewById(R.id.toolbar_in_marker_info_activity);
-        setSupportActionBar(toolbar);
-
-        // Get links
-        titleInCard = findViewById(R.id.marker_title_in_marker_info);
-        descriptionInCard = findViewById(R.id.marker_description_in_marker_info);
-        Button editButton = findViewById(R.id.edit_button_marker_info);
-        editButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                editTitleAndDescription();
-            }
-        });
-        //Button addToFavouritesButton = findViewById(R.id.add_to_fav_button_marker_info);
-
-        Intent intent = getIntent();
-
-        if (savedInstanceState != null) {
-            mMarkerTitle = savedInstanceState.getString("Title");
-            mMarkerDescription = savedInstanceState.getString("Description");
-            titleInCard.setText(mMarkerTitle);
-            descriptionInCard.setText(mMarkerDescription);
-
-        } else if (intent != null) {
-            if (intent.getStringExtra("title_from_maps_activity").trim().isEmpty()) {
-                titleInCard.setText(R.string.title_in_marker_info);
-                mMarkerTitle = titleInCard.getText().toString();
-            } else {
-                mMarkerTitle = intent.getStringExtra("title_from_maps_activity");
-                titleInCard.setText(mMarkerTitle);
-            }
-            if (intent.getStringExtra("description_from_maps_activity").trim().isEmpty()) {
-                descriptionInCard.setText(R.string.description_in_marker_info);
-                mMarkerDescription = descriptionInCard.getText().toString();
-            } else {
-                mMarkerDescription = intent.getStringExtra("description_from_maps_activity");
-                descriptionInCard.setText(mMarkerDescription);
-            }
-        }
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-
-        outState.putString("Title", mMarkerTitle);
-        outState.putString("Description", mMarkerDescription);
-    }
-
-    // Передавать title и snippet обратно в MapsActivity
-    @Override
-    public void onBackPressed() {
-        Intent mapsActivity = new Intent();
-        mapsActivity.putExtra("Marker title from card", mMarkerTitle);
-        mapsActivity.putExtra("Marker description from card", mMarkerDescription);
-        setResult(RESULT_OK, mapsActivity);
-        super.onBackPressed();
-    }
-
     /**
      * The dialog that starts when the button "edit" is pressed
      */
@@ -133,23 +139,18 @@ public class MarkerInfoActivity extends AppCompatActivity
         DialogFragment dialogFragment = OnMarkerClickFragmentDialog.newInstance();
         dialogFragment.show(getFragmentManager(), "OnMarkerClickFragmentDialog");
 
-        LayoutInflater layoutInflater = getLayoutInflater();
-        @SuppressLint("InflateParams")
-        View view = layoutInflater.inflate(R.layout.on_marker_click_dialog_fragment, null);
-        TextInputEditText titleText = view.findViewById(R.id.marker_title_in_on_marker_click_dialog_fragment);
-        titleText.setText(mMarkerTitle);
     }
 
     @Override
     public void onPositiveClick(String title, String description) {
         if (title.trim().isEmpty()) {
-            mMarkerTitle = getResources().getString(R.string.title_in_marker_info);
+            mMarkerTitle = mDefaultTitle;
         }
         if (description.trim().isEmpty()) {
-            mMarkerDescription = getResources().getString(R.string.description_in_marker_info);
+            mMarkerDescription = mDefaultDescription;
         }
-        titleInCard.setText(mMarkerTitle);
-        descriptionInCard.setText(mMarkerDescription);
+        mTitleInCard.setText(mMarkerTitle);
+        mDescriptionInCard.setText(mMarkerDescription);
     }
 
     @Override
@@ -158,17 +159,8 @@ public class MarkerInfoActivity extends AppCompatActivity
     }
 
 
-    // TODO: 19.01.2018 Save the full-size photo
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK && requestCode == REQUEST_TAKE_PHOTO) {
-           setPic();
-        }
-    }
-
     /**
-     * Returns a folder name based on the current date/time, something
-     * like "20080725.013755".
+     * Processing camera image
      */
     public String getBackupFolderName() {
         Date date = Calendar.getInstance().getTime();
@@ -182,9 +174,9 @@ public class MarkerInfoActivity extends AppCompatActivity
         String imageFileName = "JPEG_" + timeStamp + "_";
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         File image = File.createTempFile(
-                imageFileName,  /* prefix */
-                ".jpg",         /* suffix */
-                storageDir      /* directory */
+                imageFileName,    //prefix
+                ".jpg",     //suffix
+                storageDir        //directory
         );
 
         // Save a file: path for use with ACTION_VIEW intents
@@ -215,10 +207,9 @@ public class MarkerInfoActivity extends AppCompatActivity
     }
 
     private void setPic() {
-        ImageView imageView = findViewById(R.id.marker_image_in_marker_info);
         // Get the dimensions of the View
-        int targetW = imageView.getWidth();
-        int targetH = imageView.getHeight();
+        int targetW = mImageViewInCard.getWidth();
+        int targetH = mImageViewInCard.getHeight();
 
         // Get the dimensions of the bitmap
         BitmapFactory.Options bmOptions = new BitmapFactory.Options();
@@ -234,7 +225,23 @@ public class MarkerInfoActivity extends AppCompatActivity
         bmOptions.inJustDecodeBounds = false;
         bmOptions.inSampleSize = scaleFactor;
 
-        Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
-        imageView.setImageBitmap(bitmap);
+        mImageViewInCard.setImageBitmap(BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions));
     }
+
+    private void galleryAddPic() {
+        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        File f = new File(mCurrentPhotoPath);
+        Uri contentUri = Uri.fromFile(f);
+        mediaScanIntent.setData(contentUri);
+        this.sendBroadcast(mediaScanIntent);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == RESULT_OK && requestCode == REQUEST_TAKE_PHOTO) {
+            setPic();
+            galleryAddPic();
+        }
+    }
+
 }

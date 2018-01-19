@@ -1,6 +1,7 @@
 package com.naysayer.ourplaces;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DialogFragment;
 import android.content.Context;
@@ -11,11 +12,15 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
+import android.support.design.widget.NavigationView.OnNavigationItemSelectedListener;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.ActivityCompat.OnRequestPermissionsResultCallback;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
@@ -29,6 +34,9 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.places.AutocompleteFilter;
 import com.google.android.gms.location.places.Place;
@@ -36,6 +44,10 @@ import com.google.android.gms.location.places.ui.PlaceAutocompleteFragment;
 import com.google.android.gms.location.places.ui.PlaceSelectionListener;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.GoogleMap.OnInfoWindowClickListener;
+import com.google.android.gms.maps.GoogleMap.OnInfoWindowLongClickListener;
+import com.google.android.gms.maps.GoogleMap.OnMapLongClickListener;
+import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptor;
@@ -43,20 +55,39 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.naysayer.ourplaces.LocationUtil.LocationHelper;
 
 import java.util.ArrayList;
 import java.util.Objects;
+
+import butterknife.BindDrawable;
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import es.dmoral.toasty.Toasty;
 //TODO: сделать иконку с деревом
-//TODO: сделать кастомное InfoWindow и не отображать там snippet
+//TODO: сделать кастомное InfoWindow
 // TODO: 19.01.2018 если перевернуть экран телефона во время диалогового окна, то вылетает, так как поля диалого окна null и если нажать add то вылетает
+// TODO: 19.01.2018 самое первое, что происходит - получение координат, если нет разрешения, то остановка приложения
 
 public class MapsActivity extends FragmentActivity
         implements OnMarkerClickFragmentDialog.OnDialogButtonsClickListener,
-        GoogleMap.OnMapLongClickListener,
-        GoogleMap.OnMarkerClickListener,
-        GoogleMap.OnInfoWindowClickListener,
-        GoogleMap.OnInfoWindowLongClickListener,
-        NavigationView.OnNavigationItemSelectedListener {
+        OnMapLongClickListener,
+        OnMarkerClickListener,
+        OnInfoWindowClickListener,
+        OnInfoWindowLongClickListener,
+        OnNavigationItemSelectedListener,
+        ConnectionCallbacks,
+        OnConnectionFailedListener,
+        OnRequestPermissionsResultCallback {
+
+    @BindView(R.id.get_location_fab)
+    FloatingActionButton mGetMyLocationButton;
+    @BindDrawable(R.drawable.ic_place_autocomplete_button_24dp)
+    Drawable mPlaceAutocompleteButton;
+    @BindView(R.id.drawer_layout)
+    DrawerLayout mDrawerLayout;
+    @BindView(R.id.nav_view)
+    NavigationView mNavigationView;
 
     private static final String TAG = "Maps Activity";
     private static final String WAS_LAUNCHED = "Launched";
@@ -64,20 +95,35 @@ public class MapsActivity extends FragmentActivity
     private static final String NO_TITLE = "No title";
     private static final String NO_DESCRIPTION = "No description";
 
-    private GoogleMap mMap;
-    private SupportMapFragment mapFragment;
-    private Marker mMarker;
+    private static final int MARKER_INFO = 31;
+    private final static int REQUEST_CHECK_SETTINGS = 2000;
+
+    private GoogleMap mMap;                                             // Google map
+    private SupportMapFragment mapFragment;                             // Map fragment
+    private Marker mMarker;                                             // Marker
 
     private ArrayList<LatLng> mMarkersLatLng = new ArrayList<>();       // Store markers LatLng
     private ArrayList<String> mMarkersTitles = new ArrayList<>();       // Store markers titles
     private ArrayList<String> mMarkersTags = new ArrayList<>();         // Store markers tags
-    private ArrayList<String> mMarkersSnippets = new ArrayList<>(); // Store markers snippets
+    private ArrayList<String> mMarkersSnippets = new ArrayList<>();     // Store markers snippets
+
+    // For get current location
+    private Location mLastLocation;
+    double latitude;
+    double longitude;
+    LocationHelper locationHelper;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "onCreate(Bundle) called");
         setContentView(R.layout.main_activity);
+
+        // Check permission
+        locationHelper = new LocationHelper(this);
+        locationHelper.checkpermission();
+
+        ButterKnife.bind(this);
 
         // Get GoogleMap
         mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -87,7 +133,6 @@ public class MapsActivity extends FragmentActivity
             public void onMapReady(GoogleMap googleMap) {
                 mMap = googleMap;
 
-                moveCameraToCurrentLocation(15f);
                 setUpMap();
 
                 // Check whether we're recreating a previously destroyed instance
@@ -117,14 +162,13 @@ public class MapsActivity extends FragmentActivity
         assert mAutocompleteFragment.getView() != null;
         ImageView mPlaceAutocompleteIcon = (ImageView) ((LinearLayout) mAutocompleteFragment.getView())
                 .getChildAt(0);
-        mPlaceAutocompleteIcon.setImageDrawable(getResources().getDrawable(R.drawable.ic_place_autocomplete_button_24dp));
+        mPlaceAutocompleteIcon.setImageDrawable(mPlaceAutocompleteButton);
 
         // Set image click listener
         mPlaceAutocompleteIcon.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                DrawerLayout drawer = findViewById(R.id.drawer_layout);
-                drawer.openDrawer(Gravity.START);
+                mDrawerLayout.openDrawer(Gravity.START);
             }
         });
 
@@ -156,26 +200,31 @@ public class MapsActivity extends FragmentActivity
             }
         });
 
-        // Get Location FAB
-        FloatingActionButton mGetMyLocationButton = findViewById(R.id.get_location_fab);
         mGetMyLocationButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // Get current location (ltd, lng) and animate camera with current zoom
-                moveCameraToCurrentLocation(mMap.getCameraPosition().zoom);
+                locationHelper.checkpermission();
+                // Get current location (ltd, lng) and animate camera with zoom = 15f
+                float currentZoom = mMap.getCameraPosition().zoom;
+                moveCameraToCurrentLocation(currentZoom);
             }
         });
 
         // Navigation drawer
-        DrawerLayout drawer = findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawer, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.addDrawerListener(toggle);
-        drawer.closeDrawer(Gravity.START);
+                this, mDrawerLayout, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        mDrawerLayout.addDrawerListener(toggle);
+        mDrawerLayout.closeDrawer(Gravity.START);
         toggle.syncState();
 
-        NavigationView navigationView = findViewById(R.id.nav_view);
-        navigationView.setNavigationItemSelectedListener(this);
+        mNavigationView.setNavigationItemSelectedListener(this);
+
+        // check availability of play services
+        if (locationHelper.checkPlayServices()) {
+
+            // Building the GoogleApi client
+            locationHelper.buildGoogleApiClient();
+        }
     }
 
     // Set map listeners and settings
@@ -220,6 +269,24 @@ public class MapsActivity extends FragmentActivity
         mMap.setOnMarkerClickListener(this);
     }
 
+    /**
+     * The function that moves the camera to the current coordinates with a certain zoom
+     */
+    private void moveCameraToCurrentLocation(float zoom) {
+        mLastLocation = locationHelper.getLocation();
+        if (mLastLocation != null) {
+            latitude = mLastLocation.getLatitude();
+            longitude = mLastLocation.getLongitude();
+            LatLng latLng = new LatLng(latitude, longitude);
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, zoom));
+        } else {
+            Toasty.error(this,
+                    getResources().getString(R.string.unable_gps_toast),
+                    Toast.LENGTH_LONG)
+                    .show();
+        }
+    }
+
     @Override
     public void onMapLongClick(LatLng latLng) {
         //Add marker
@@ -230,7 +297,6 @@ public class MapsActivity extends FragmentActivity
         mMarkersTitles.add(NO_TITLE);
         mMarkersTags.add(NOT_LAUNCHED);
         mMarkersSnippets.add(NO_DESCRIPTION);
-
     }
 
     @Override
@@ -254,27 +320,45 @@ public class MapsActivity extends FragmentActivity
         markerInfo.putExtra("description_from_maps_activity", marker.getSnippet());
 
         // Run MarkerInfoActivity
-        startActivityForResult(markerInfo, 1);
+        startActivityForResult(markerInfo, MARKER_INFO);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (data == null) return;
 
-        String titleFromMarkerInfoActivity = data.getStringExtra("Marker title from card");
-        String descriptionFromMarkerInfoActivity = data.getStringExtra("Marker description from card");
-        mMarker.setTitle(titleFromMarkerInfoActivity);
-        mMarker.setSnippet(descriptionFromMarkerInfoActivity);
+        switch (requestCode) {
+            case MARKER_INFO:
+                String titleFromMarkerInfoActivity =
+                        data.getStringExtra("Marker title from card");
+                String descriptionFromMarkerInfoActivity =
+                        data.getStringExtra("Marker description from card");
+                mMarker.setTitle(titleFromMarkerInfoActivity);
+                mMarker.setSnippet(descriptionFromMarkerInfoActivity);
 
-        // Get marker latlng, when get array index of latlng
-        int index = mMarkersLatLng.indexOf(mMarker.getPosition());
+                // Get marker latlng, when get array index of latlng
+                int index = mMarkersLatLng.indexOf(mMarker.getPosition());
 
-        // Set changed title and snippet to array
-        mMarkersTitles.set(index, titleFromMarkerInfoActivity);
-        mMarkersSnippets.set(index, descriptionFromMarkerInfoActivity);
+                // Set changed title and snippet to array
+                mMarkersTitles.set(index, titleFromMarkerInfoActivity);
+                mMarkersSnippets.set(index, descriptionFromMarkerInfoActivity);
 
-        // Show changes
-        mMarker.showInfoWindow();
+                // Show changes
+                mMarker.showInfoWindow();
+
+            case REQUEST_CHECK_SETTINGS:
+                switch (resultCode) {
+                    case Activity.RESULT_OK:
+                        // All required changes were successfully made
+                        mLastLocation = locationHelper.getLocation();
+                        break;
+                    case Activity.RESULT_CANCELED:
+                        // The user was asked to change settings, but chose not to
+                        break;
+                    default:
+                        break;
+                }
+        }
     }
 
     @Override
@@ -293,6 +377,7 @@ public class MapsActivity extends FragmentActivity
     protected void onResume() {
         super.onResume();
         Log.d(TAG, "onResume(Bundle) called");
+        locationHelper.checkPlayServices();
     }
 
     @Override
@@ -313,7 +398,9 @@ public class MapsActivity extends FragmentActivity
         Log.d(TAG, "onDestroy(Bundle) called");
     }
 
-    // Save marker position, title and snippet
+    /**
+     * Save marker position, title and snippet
+     */
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         Log.d(TAG, "onSaveInstanceState(Bundle) called");
@@ -328,7 +415,9 @@ public class MapsActivity extends FragmentActivity
         super.onSaveInstanceState(outState);
     }
 
-    // Add custom marker on map
+    /**
+     * Add custom marker on map
+     */
     private void addMarkerOnMap(LatLng latLng) {
 
         // Set marker params
@@ -362,9 +451,13 @@ public class MapsActivity extends FragmentActivity
         }
     }
 
-    // Restore markers on map
-    private void restoreMarkers(ArrayList<LatLng> markersLatLng, ArrayList<String> markersTitles,
-                                ArrayList<String> markersTags, ArrayList<String> markersSnippets) {
+    /**
+     * Restore markers on map
+     */
+    private void restoreMarkers(ArrayList<LatLng> markersLatLng,
+                                ArrayList<String> markersTitles,
+                                ArrayList<String> markersTags,
+                                ArrayList<String> markersSnippets) {
         Log.d(TAG, "restoreMarkers( )");
         if (markersLatLng != null & markersTitles != null) {
             for (int i = 0; i < markersLatLng.size(); i++) {
@@ -381,7 +474,9 @@ public class MapsActivity extends FragmentActivity
 
     }
 
-    // Get bitmap from vector img
+    /**
+     * Get bitmap from vector img
+     */
     @NonNull
     private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId) {
         Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
@@ -393,7 +488,9 @@ public class MapsActivity extends FragmentActivity
         return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
 
-    // Make dialog to delete marker from map
+    /**
+     * Make dialog to delete marker from map
+     */
     private void deleteMarkerDialog(final Marker marker) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage(R.string.dialog_delete_marker)
@@ -413,24 +510,16 @@ public class MapsActivity extends FragmentActivity
         dialog.show();
     }
 
-    // The function that moves the camera to the current coordinates with a certain zoom
-    private void moveCameraToCurrentLocation(float zoom) {
-
-        CurrentLocation currentLocation = new CurrentLocation();
-        //Move camera to current location
-        mMap.animateCamera(CameraUpdateFactory
-                .newLatLngZoom(currentLocation.getCurrentLocation(this,
-                        MapsActivity.this), zoom));
-    }
-
     // Show the dialog
     private void showOnMarkerClickDialog() {
         DialogFragment dialogFragment = OnMarkerClickFragmentDialog.newInstance();
         dialogFragment.show(getFragmentManager(), "OnMarkerClickFragmentDialog");
     }
 
-    // Positive OnMarkerClickDialogFragment button
-    // Method sends a title and a description(snippet) to the MarkerInfoActivity
+    /**
+     * Positive OnMarkerClickDialogFragment button
+     * Method sends a title and a description(snippet) to the MarkerInfoActivity
+     */
     @Override
     public void onPositiveClick(String title, String description) {
         // Set marker title
@@ -461,11 +550,13 @@ public class MapsActivity extends FragmentActivity
         markerInfo.putExtra("description_from_maps_activity", description);
 
         // Run MarkerInfoActivity
-        startActivityForResult(markerInfo, 1);
+        startActivityForResult(markerInfo, MARKER_INFO);
     }
 
-    // Negative OnMarkerClickDialogFragment button
-    // Dismiss dialog
+    /**
+     * Negative OnMarkerClickDialogFragment button
+     * Dismiss dialog
+     */
     @Override
     public void onNegativeClick(DialogFragment dialogFragment) {
         dialogFragment.dismiss();
@@ -502,6 +593,31 @@ public class MapsActivity extends FragmentActivity
         } else {
             super.onBackPressed();
         }
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        // Once connected with google api, get the location
+        mLastLocation = locationHelper.getLocation();
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+        locationHelper.connectApiClient();
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        Log.i("Connection failed:", " ConnectionResult.getErrorCode() = "
+                + connectionResult.getErrorCode());
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        // redirects to utils
+        locationHelper.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 }
 

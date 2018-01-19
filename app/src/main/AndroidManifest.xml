@@ -44,7 +44,8 @@
         <activity
             android:name=".MarkerInfoActivity"
             android:label="@string/marker_info_activity_name"
-            android:parentActivityName=".MapsActivity">
+            android:parentActivityName=".MapsActivity"
+            android:screenOrientation="portrait">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".MapsActivity" />

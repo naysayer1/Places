@@ -41,6 +41,7 @@
     <string name="gallery">Gallery</string>
     <string name="rate">Rate</string>
 
+    <string name="unable_gps_toast">Couldn\'t get the location. Make sure location is enabled on the device</string>
     <!-- Content description -->
     <string name="application_icon">Application Icon</string>
 
